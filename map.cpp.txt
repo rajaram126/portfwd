@@ -1,0 +1,114 @@
+// ConsoleApplication1.cpp : Defines the entry point for the console application.
+//
+
+#include "stdafx.h"
+#include <Natupnp.h>
+#include <iostream>
+
+class Mapper
+{
+public:
+	Mapper::~Mapper()
+	{
+		if (newMap)
+		{
+			newMap->Release();
+			newMap = NULL;
+		}
+
+		if (mappingCollection)
+		{
+			mappingCollection->Release();
+			mappingCollection = NULL;
+		}
+
+		if (pnpNat)
+		{
+			pnpNat->Release();
+			pnpNat = NULL;
+		}
+
+	}
+	bool Map(BSTR protocol, BSTR ip, BSTR name, int externalport, int internalport);
+	bool Unmap(BSTR protocol, int externalport);
+
+private:
+	IUPnPNAT *pnpNat = NULL;
+	IStaticPortMappingCollection *mappingCollection = NULL;
+	IStaticPortMapping *newMap = NULL;
+};
+
+bool Mapper::Unmap(BSTR protocol, int externalport)
+{
+
+	HRESULT result = mappingCollection->Remove(externalport, protocol);
+	if (FAILED(result))
+	{
+		std::cout << "Remove failed" << std::endl;
+		return false;
+	}
+}
+
+
+bool Mapper::Map(BSTR protocol, BSTR ip, BSTR name, int externalport, int internalport)
+{
+	
+	HRESULT result = CoInitialize(NULL);
+
+	if (FAILED(result))
+	{
+		std::cout << "CoInitialize failed" << std::endl;
+		return false;
+	}
+
+	result = CoCreateInstance(__uuidof(UPnPNAT), NULL, CLSCTX_ALL, __uuidof(IUPnPNAT), (void **)&pnpNat);
+
+	if (FAILED(result) || !pnpNat)
+	{
+		std::cout << "CoCreateInstance IUPnPNAT failed" << std::endl;
+		return false;
+	}
+
+	result = pnpNat->get_StaticPortMappingCollection(&mappingCollection);
+
+	if (FAILED(result) || !mappingCollection)
+	{
+		std::cout << "get_StaticPortMappingCollection failed" << std::endl;
+		return false;
+	}
+
+	if (newMap)
+	{
+		newMap->Release();
+		newMap = NULL;
+	}
+
+	result = mappingCollection->Add(externalport, protocol, internalport, ip, true, name, &newMap);
+
+	if (FAILED(result) || !newMap)
+	{
+		std::cout << "Add failed" << std::endl;
+		return false;
+	}
+
+	return true;
+}
+
+
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+	Mapper a;
+
+	BSTR protocol = ::SysAllocString(L"TCP");
+	BSTR ip = ::SysAllocString(L"192.168.0.22");
+	BSTR name = ::SysAllocString(L"desktop");
+
+	a.Map(protocol,ip,name, 8000, 7000);
+
+	//a.Unmap(protocol, 8000);
+	system("PAUSE");
+
+	return 0;
+}
+
